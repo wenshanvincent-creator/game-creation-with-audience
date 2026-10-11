@@ -1,0 +1,48 @@
+:root { font-family: ui-rounded, "Trebuchet MS", system-ui, sans-serif; color: #254b50; background: #b9e5ee; }
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; overscroll-behavior: none; }
+#game, #game canvas { display: block; width: 100%; height: 100dvh; }
+#game { position: fixed; inset: 0; }
+.intro { position: fixed; top: max(38px, env(safe-area-inset-top)); left: max(44px, env(safe-area-inset-left)); pointer-events: none; }
+.eyebrow { font-size: 10px; font-weight: 800; letter-spacing: 2.4px; margin: 0 0 12px; }
+h1 { font-size: clamp(32px, 4vw, 54px); letter-spacing: -2.8px; font-weight: 800; margin: 0; line-height: 1.1; }
+h1 span { color: #e58b48; }
+.subtitle { margin: 12px 0 0; font-size: 14px; }
+.day { position: fixed; right: max(40px, env(safe-area-inset-right)); top: max(40px, env(safe-area-inset-top)); display: flex; align-items: center; gap: 9px; font-size: 10px; font-weight: 800; letter-spacing: 1.4px; }
+.day-label { opacity: .6; }
+.sun-dot { display: block; width: 9px; height: 9px; border-radius: 50%; background: #f9d183; box-shadow: 0 0 0 4px #f9d18330; }
+.hud { position: fixed; inset: auto 40px max(32px, env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
+.instructions { display: flex; gap: 16px; align-items: center; }
+.instructions strong { font-size: 13px; }
+.instructions p:not(.desktop-hint) { margin: 5px 0 0; font-size: 11px; opacity: .7; }
+.desktop-hint { display: flex; flex-direction: column; align-items: center; gap: 3px; margin: 0; }
+.key-row { display: flex; gap: 3px; }
+kbd { font: 700 10px system-ui, sans-serif; width: 21px; height: 20px; display: grid; place-items: center; border: 1px solid #254b5030; border-radius: 5px; background: #ffffff4d; }
+button { color: inherit; font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#touch-toggle { pointer-events: auto; border: 1px solid #254b5025; background: #ffffff65; border-radius: 999px; padding: 11px 17px; font-size: 11px; font-weight: 700; backdrop-filter: blur(8px); }
+button:focus-visible { outline: 3px solid #de8142; outline-offset: 4px; }
+#touch-controls { position: fixed; right: max(28px, env(safe-area-inset-right)); bottom: max(84px, calc(env(safe-area-inset-bottom) + 64px)); display: grid; grid-template: repeat(2, 52px) / repeat(3, 52px); gap: 7px; }
+#touch-controls[hidden] { display: none; }
+#touch-controls button { touch-action: none; user-select: none; border: 1px solid #ffffffb3; border-radius: 15px; font-size: 25px; background: #ffffff8c; box-shadow: 0 4px 16px #254b5012; backdrop-filter: blur(8px); }
+#touch-controls button.held { background: #f9d183; transform: translateY(2px); }
+.forward { grid-area: 1 / 2; }
+.left { grid-area: 2 / 1; }
+.backward { grid-area: 2 / 2; }
+.right { grid-area: 2 / 3; }
+#status { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 90vw; border-radius: 14px; padding: 18px 24px; background: #fffdf1e6; text-align: center; font-size: 14px; }
+#status[hidden] { display: none; }
+noscript { position: fixed; top: 50%; left: 10%; padding: 20px; background: #fff; }
+@media (max-width: 640px) {
+  .intro { top: max(24px, env(safe-area-inset-top)); left: 24px; }
+  .eyebrow { font-size: 8px; letter-spacing: 1.6px; }
+  h1 { font-size: 38px; letter-spacing: -2px; }
+  .subtitle { font-size: 12px; margin-top: 8px; }
+  .day { top: auto; bottom: max(25px, env(safe-area-inset-bottom)); right: 24px; font-size: 9px; }
+  .day-label { display: none; }
+  .hud { left: 24px; right: 24px; bottom: max(60px, calc(env(safe-area-inset-bottom) + 40px)); }
+  .desktop-hint { display: none; }
+  .instructions { max-width: 180px; }
+  .instructions strong { font-size: 12px; }
+  #touch-toggle { padding: 9px 12px; font-size: 10px; }
+  #touch-controls { bottom: max(110px, calc(env(safe-area-inset-bottom) + 90px)); right: 24px; grid-template: repeat(2, 48px) / repeat(3, 48px); }
+}
