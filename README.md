@@ -36,6 +36,15 @@ With the static server running and Python Playwright plus Chromium available, th
 python3 tests/browser_check.py
 ```
 
-Screenshots and a JSON report are written to `/tmp/day1-evidence` by default. `ISLAND_URL` and `ISLAND_ARTIFACTS` can change the test server and evidence directory. This cloud executor intercepts HTTPS with a certificate that its Chromium does not trust; `ISLAND_TEST_PROXY_CA=1` relaxes certificate checking **in the isolated test browser only**. Normal gameplay retains the browser's usual HTTPS checks.
+Screenshots and a JSON report are written to `/tmp/day1-evidence` by default. `ISLAND_URL` and `ISLAND_ARTIFACTS` can change the test server and evidence directory. Browser TLS validation remains enabled.
+
+In this cloud executor, a normal Chromium CDN load fails with `net::ERR_CERT_AUTHORITY_INVALID`. The environment supplies a proxy CA to the system trust bundle, but that CA is absent from the existing browser NSS trust store. Browser trust settings have not been changed. The following isolated check uses a local response fixture downloaded with normal system TLS validation:
+
+```sh
+curl --fail https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js -o /tmp/three-0.170.0.module.js
+ISLAND_TEST_THREE_CACHE=/tmp/three-0.170.0.module.js python3 tests/browser_check.py
+```
+
+Fixture mode verifies rendering and interaction with the exact dependency, but does **not** verify real CDN loading in the browser. A complete browser pass with normal CDN TLS validation remains blocked on the cloud browser's certificate configuration. The production app still uses the pinned CDN URL.
 
 Development stops at this starting world. Audience proposals need owner approval before further features are added.
