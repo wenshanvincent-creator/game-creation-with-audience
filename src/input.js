@@ -1,15 +1,17 @@
 export function createInput() {
   const keys = new Set();
   const pointers = new Map();
+  let jumpRequested = false;
   const controls = document.querySelector('#touch-controls');
   const toggle = document.querySelector('#touch-toggle');
   const hint = document.querySelector('#control-hint');
   const buttons = [...controls.querySelectorAll('button')];
-  const allowed = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight']);
+  const allowed = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'Space']);
 
   function release() {
     keys.clear();
     pointers.clear();
+    jumpRequested = false;
     buttons.forEach(button => button.classList.remove('held'));
   }
   function showTouch(show) {
@@ -17,14 +19,19 @@ export function createInput() {
     controls.hidden = !show;
     toggle.setAttribute('aria-pressed', String(show));
     toggle.textContent = show ? 'Hide controls' : 'Touch controls';
-    hint.textContent = show ? 'Hold the arrows to explore' : 'Move with WASD or arrow keys';
+    hint.textContent = show ? 'Hold arrows · tap Jump' : 'WASD / arrows · Space to jump';
   }
-  toggle.addEventListener('click', () => showTouch(controls.hidden));
+  toggle.addEventListener('click', event => {
+    showTouch(controls.hidden);
+    if (event.detail > 0) toggle.blur();
+  });
   showTouch(matchMedia('(pointer: coarse)').matches);
 
   window.addEventListener('keydown', event => {
     if (!allowed.has(event.code) || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.target.matches('input, textarea, select') || (event.code === 'Space' && event.target.matches('button'))) return;
     event.preventDefault();
+    if (event.code === 'Space' && !event.repeat && !keys.has('Space')) jumpRequested = true;
     keys.add(event.code);
   });
   window.addEventListener('keyup', event => keys.delete(event.code));
@@ -37,6 +44,7 @@ export function createInput() {
       event.preventDefault();
       button.setPointerCapture(event.pointerId);
       pointers.set(event.pointerId, button.dataset.direction);
+      if (button.dataset.direction === 'jump') jumpRequested = true;
       button.classList.add('held');
     });
     const stop = event => {
@@ -46,6 +54,10 @@ export function createInput() {
     button.addEventListener('pointerup', stop);
     button.addEventListener('pointercancel', stop);
     button.addEventListener('lostpointercapture', stop);
+    // Keyboard activation of the accessible Jump button has no pointerdown.
+    if (button.dataset.direction === 'jump') button.addEventListener('click', event => {
+      if (event.detail === 0) jumpRequested = true;
+    });
   }
 
   return {
@@ -58,5 +70,10 @@ export function createInput() {
       };
     },
     release,
+    consumeJump() {
+      const requested = jumpRequested;
+      jumpRequested = false;
+      return requested;
+    },
   };
 }

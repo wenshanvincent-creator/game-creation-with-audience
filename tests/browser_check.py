@@ -14,7 +14,7 @@ from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get('ISLAND_URL', 'http://127.0.0.1:8000/')
 URL = BASE.rstrip('/') + '/?debug'
-ARTIFACTS = Path(os.environ.get('ISLAND_ARTIFACTS', '/tmp/day1-evidence'))
+ARTIFACTS = Path(os.environ.get('ISLAND_ARTIFACTS', '/tmp/day3-evidence'))
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
 CDN = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js'
 CACHE = os.environ.get('ISLAND_TEST_THREE_CACHE')
@@ -42,7 +42,8 @@ def load(page):
     page.on('console', lambda message: errors.append(message.text) if message.type == 'error' else None)
     page.on('request', lambda request: requests.append(request.url))
     page.goto(URL, wait_until='networkidle')
-    page.wait_for_function('window.__island !== undefined')
+    page.wait_for_function("window.__island !== undefined || document.querySelector('#status').textContent.includes('couldn’t load')")
+    assert page.evaluate('window.__island !== undefined'), errors
     assert not page.locator('#status').is_visible()
 
 
@@ -55,6 +56,8 @@ with sync_playwright() as p:
         desktop.route(CDN, lambda route: route.fulfill(path=CACHE, content_type='application/javascript'))
     page = desktop.new_page()
     load(page)
+    page.locator('[data-time="day"]').click()
+    page.wait_for_function('window.__island.snapshot().time.daylight === 1 && !window.__island.snapshot().time.cycling')
     assert not page.locator('#touch-controls').is_visible()
     assert snapshot(page)['tiles'] == 197
     page.screenshot(path=str(ARTIFACTS / 'desktop.png'))
@@ -90,6 +93,29 @@ with sync_playwright() as p:
     assert math.dist([v / length for v in vector], still['cameraDirection']) < 0.001
     checks.append('Arrow keys work; key release stops movement; camera follows and looks at player')
 
+    page.keyboard.down('Space')
+    page.wait_for_function('window.__island.snapshot().player[1] > 0.5')
+    airborne = snapshot(page)
+    assert not airborne['jump']['grounded']
+    assert airborne['target'][1] > 0.9, 'camera tracks the jump vertically'
+    page.screenshot(path=str(ARTIFACTS / 'jump.png'))
+    # A repeated keydown while held must not create a second jump after landing.
+    page.keyboard.down('Space')
+    page.wait_for_function('window.__island.snapshot().jump.grounded', timeout=15000)
+    page.wait_for_timeout(600)
+    assert snapshot(page)['player'][1] == 0
+    page.keyboard.up('Space')
+    checks.append('Space jumps, camera follows vertically, gravity lands, and held/repeated Space does not bounce')
+    page.keyboard.down('w')
+    page.keyboard.down('Space')
+    page.wait_for_function('window.__island.snapshot().player[1] > 0.3')
+    moving_jump = snapshot(page)
+    assert moving_jump['player'][0] < airborne['player'][0]
+    page.keyboard.up('Space')
+    page.keyboard.up('w')
+    page.wait_for_function('window.__island.snapshot().jump.grounded', timeout=15000)
+    checks.append('Walking and jumping work together without losing the grounded landing')
+
     page.keyboard.down('w')
     page.wait_for_timeout(300)
     page.evaluate("window.dispatchEvent(new Event('blur'))")
@@ -119,12 +145,44 @@ with sync_playwright() as p:
     assert page.locator('canvas').evaluate('(canvas) => canvas.width') == 1000
     checks.append('Canvas resizes with the browser')
 
+    page.set_viewport_size({'width': 1440, 'height': 900})
+    page.wait_for_function("document.querySelector('canvas').width === 1440")
+    theme_states = {}
+    for theme in ['day', 'sunset', 'night']:
+        page.locator('[data-time="' + theme + '"]').click()
+        page.wait_for_function('(theme) => document.querySelector(`[data-time="${theme}"]`).getAttribute("aria-pressed") === "true" && !window.__island.snapshot().time.cycling', arg=theme)
+        page.wait_for_function('(theme) => theme !== "night" || window.__island.snapshot().lighting.starsOpacity === 1', arg=theme)
+        page.wait_for_timeout(400)
+        theme_states[theme] = snapshot(page)
+        page.screenshot(path=str(ARTIFACTS / (theme + '.png')))
+    assert theme_states['day']['lighting']['starsOpacity'] == 0
+    assert theme_states['day']['lighting']['sunVisible']
+    assert theme_states['night']['lighting']['moonVisible']
+    assert theme_states['night']['lighting']['ambientIntensity'] >= 0.85
+    assert theme_states['night']['lighting']['moonIntensity'] > 1
+    assert theme_states['day']['lighting']['skyTop'] != theme_states['night']['lighting']['skyTop']
+    assert theme_states['sunset']['time']['twilight'] > 0.8
+    checks.append('Day, sunset and night presets visibly change sky and lighting; night has stars and moonlight')
+    phase = snapshot(page)['time']['phase']
+    sun_position = snapshot(page)['lighting']['sunPosition']
+    page.locator('#cycle-toggle').click()
+    page.wait_for_function('phase => Math.abs(window.__island.snapshot().time.phase - phase) > 0.005', arg=phase)
+    assert snapshot(page)['lighting']['sunPosition'] != sun_position
+    page.locator('#cycle-toggle').click()
+    paused = snapshot(page)['time']['phase']
+    page.wait_for_timeout(450)
+    assert snapshot(page)['time']['phase'] == paused
+    checks.append('Automatic time advances moving celestial bodies; pause freezes the cycle')
+    page.close()
+
     mobile = browser.new_context(viewport={'width': 390, 'height': 844}, has_touch=True,
                                  is_mobile=True, device_scale_factor=1)
     if CACHE:
         mobile.route(CDN, lambda route: route.fulfill(path=CACHE, content_type='application/javascript'))
     phone = mobile.new_page()
     load(phone)
+    phone.locator('[data-time="night"]').click()
+    phone.wait_for_function('window.__island.snapshot().time.daylight === 0 && window.__island.snapshot().lighting.starsOpacity === 1')
     assert phone.locator('#touch-controls').is_visible()
     assert phone.evaluate('document.documentElement.scrollWidth <= innerWidth')
     phone.screenshot(path=str(ARTIFACTS / 'touch-portrait.png'))
@@ -140,11 +198,33 @@ with sync_playwright() as p:
     phone.wait_for_timeout(350)
     assert distance(after, snapshot(phone)) < 0.001
     checks.append('Real emulated touch moves and releases on a portrait phone')
+    bounds = phone.locator('[data-direction="jump"]').bounding_box()
+    jump_point = {'x': bounds['x'] + bounds['width'] / 2, 'y': bounds['y'] + bounds['height'] / 2, 'id': 2}
+    cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [jump_point]})
+    phone.wait_for_function('window.__island.snapshot().player[1] > 0.3')
+    phone.wait_for_function('window.__island.snapshot().jump.grounded', timeout=15000)
+    phone.wait_for_timeout(350)
+    assert snapshot(phone)['player'][1] == 0, 'held touch does not auto-jump on landing'
+    cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
+    checks.append('Touch Jump rises and lands at night, without repeated jumps while held')
     phone.set_viewport_size({'width': 844, 'height': 390})
     phone.wait_for_function("document.querySelector('canvas').width === 844")
     assert phone.locator('[data-direction="forward"]').bounding_box()['y'] > 0
     phone.screenshot(path=str(ARTIFACTS / 'touch-landscape.png'))
     checks.append('Touch controls remain visible in landscape')
+    mobile.close()
+
+    reduced = browser.new_context(viewport={'width': 1000, 'height': 700}, reduced_motion='reduce')
+    if CACHE:
+        reduced.route(CDN, lambda route: route.fulfill(path=CACHE, content_type='application/javascript'))
+    quiet = reduced.new_page()
+    load(quiet)
+    assert not snapshot(quiet)['time']['cycling']
+    quiet.locator('[data-time="night"]').click()
+    quiet.wait_for_function('window.__island.snapshot().time.daylight === 0 && window.__island.snapshot().lighting.starsOpacity === 1')
+    assert snapshot(quiet)['lighting']['starsOpacity'] == 1
+    checks.append('Reduced motion pauses automatic cycling and still allows manual night review')
+    reduced.close()
 
     external = sorted({url for url in requests if not url.startswith(BASE)})
     assert external == [CDN], external
@@ -167,6 +247,7 @@ with sync_playwright() as p:
               'dependency_mode': 'local response fixture; not a real CDN browser pass' if CACHE else 'real CDN',
               'checks': checks,
               'errors': errors, 'external_requests': external, 'final_desktop_state': still}
+    result['theme_states'] = theme_states
     (ARTIFACTS / 'verification.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result, indent=2))
     browser.close()

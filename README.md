@@ -4,11 +4,15 @@ A playable blocky-island browser sandbox built together with a Douyin audience.
 
 Audience ideas are shortlisted for owner approval. Development changes are proposed through pull requests for owner review before merging.
 
-## Day 1
+## Days 1–3
 
 Create a flat 3D island with sky, sunlight, a movable blocky character, and a following camera. Support desktop Chrome and touch controls.
 
-Day 1 is playable with WASD or arrow keys. On a touch device, hold the on-screen arrows; the **Touch controls** button also makes them available on desktop. The camera follows the explorer, and the shoreline keeps their feet on the island.
+Day 1's island is preserved. Move with **WASD or arrow keys**, and jump with **Space**. On a touch device, hold the arrows and tap **Jump**; the **Touch controls** button also shows them on desktop. Gravity returns the explorer to the ground, midair presses cannot add another jump, and the shoreline still limits movement while jumping. The camera follows both walking and jumping.
+
+Day 3 adds a **90-second day/night cycle**, moving sun and moon, sunset colors, changing world lighting, and stars at night. Moonlight keeps the island visible. **Day**, **Sunset**, and **Night** choose a view immediately and pause the cycle; **Resume cycle** starts time again. Reduced-motion preferences pause automatic cycling by default, while presets remain available.
+
+Public pre-merge preview: https://wenshanvincent-creator.github.io/game-creation-with-audience/ — GitHub Pages publishes the root of `feat/day-1-island` independently of merging review changes into `main`.
 
 ## Run and review
 
@@ -24,19 +28,19 @@ There is no application build step, bundler, npm dependency, backend, analytics,
 
 ## Verification
 
-Movement and shoreline checks use Node's built-in test runner:
+Movement, gravity, landing, shoreline, and deterministic day/night checks use Node's built-in test runner:
 
 ```sh
-node --test tests/movement.test.mjs
+node --test tests/*.test.mjs
 ```
 
-With the static server running and Python Playwright plus Chromium available, the browser regression check verifies rendering, WASD and arrow movement, camera tracking, input release, viewport resizing, emulated touch, network requests, and load-failure messaging:
+With the static server running and Python Playwright plus Chromium available, the browser regression check verifies rendering, movement, keyboard and touch jumping, landing, camera tracking, time presets and cycling, reduced-motion behavior, viewport resizing, network requests, and load-failure messaging:
 
 ```sh
 python3 tests/browser_check.py
 ```
 
-Screenshots and a JSON report are written to `/tmp/day1-evidence` by default. `ISLAND_URL` and `ISLAND_ARTIFACTS` can change the test server and evidence directory. Browser TLS validation remains enabled.
+Screenshots and a JSON report are written to `/tmp/day3-evidence` by default. `ISLAND_URL` and `ISLAND_ARTIFACTS` can change the test server and evidence directory. Browser TLS validation remains enabled.
 
 In this cloud executor, a normal Chromium CDN load fails with `net::ERR_CERT_AUTHORITY_INVALID`. The environment supplies a proxy CA to the system trust bundle, but that CA is absent from the existing browser NSS trust store. Browser trust settings have not been changed. The following isolated check uses a local response fixture downloaded with normal system TLS validation:
 
@@ -47,4 +51,4 @@ ISLAND_TEST_THREE_CACHE=/tmp/three-0.170.0.module.js python3 tests/browser_check
 
 Fixture mode verifies rendering and interaction with the exact dependency, but does **not** verify real CDN loading in the browser. A complete browser pass with normal CDN TLS validation remains blocked on the cloud browser's certificate configuration. The production app still uses the pinned CDN URL.
 
-Development stops at this starting world. Audience proposals need owner approval before further features are added.
+The owner approved development through Day 3. Further audience proposals need owner approval before additional features are added.
