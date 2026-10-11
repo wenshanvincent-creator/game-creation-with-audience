@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#b9e5ee">
-    <title>Tiny Island — Day 1</title>
+    <title>Tiny Island — Days 1–3</title>
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="./src/style.css">
     <script type="importmap">
@@ -17,13 +17,22 @@
     <header class="intro">
       <p class="eyebrow">A WORLD WE’LL GROW TOGETHER</p>
       <h1>Tiny Island<span>.</span></h1>
-      <p class="subtitle">A little land. A big beginning.</p>
+      <p class="subtitle">Little leaps. Sunsets. Starlit nights.</p>
     </header>
-    <div class="day"><span class="sun-dot"></span> DAY 01 <span class="day-label">/ THE ISLAND</span></div>
+    <div class="day"><span class="sun-dot"></span> DAY 03 <span class="day-label">/ LIGHT &amp; LEAPS</span></div>
+    <section class="time-controls" aria-label="Time of day">
+      <div class="time-readout"><strong id="time-label">Afternoon</strong><span id="time-clock">14:52</span></div>
+      <div class="time-presets">
+        <button type="button" data-time="day" aria-pressed="false">Day</button>
+        <button type="button" data-time="sunset" aria-pressed="false">Sunset</button>
+        <button type="button" data-time="night" aria-pressed="false">Night</button>
+      </div>
+      <button id="cycle-toggle" type="button" aria-pressed="true">Pause cycle</button>
+    </section>
     <footer class="hud">
       <div class="instructions">
         <p class="desktop-hint"><kbd>W</kbd><span class="key-row"><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></p>
-        <div><strong>Take a little wander</strong><p id="control-hint">Move with WASD or arrow keys</p></div>
+        <div><strong>Wander. Hop. Watch the sky.</strong><p id="control-hint">WASD / arrows · Space to jump</p></div>
       </div>
       <button id="touch-toggle" type="button" aria-pressed="false">Touch controls</button>
     </footer>
@@ -32,6 +41,7 @@
       <button data-direction="left" class="left" aria-label="Move left">←</button>
       <button data-direction="backward" class="backward" aria-label="Move backward">↓</button>
       <button data-direction="right" class="right" aria-label="Move right">→</button>
+      <button data-direction="jump" class="jump" aria-label="Jump">Jump</button>
     </nav>
     <p id="status" role="status">Your little island is loading…</p>
     <noscript>This island needs JavaScript enabled to play.</noscript>

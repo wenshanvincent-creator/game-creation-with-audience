@@ -4,26 +4,44 @@ import { TILE_SIZE } from './movement.js';
 export function createWorld(scene, tiles) {
   scene.background = new THREE.Color('#b9e5ee');
   scene.fog = new THREE.Fog('#c5e5e6', 45, 135);
+  const skyUniforms = {
+    topColor: { value: new THREE.Color('#80c5df') },
+    horizonColor: { value: new THREE.Color('#d7eee6') },
+  };
 
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(180, 24, 16),
     new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,
+      uniforms: skyUniforms,
       vertexShader: 'varying vec3 vPosition; void main() { vPosition = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'varying vec3 vPosition; void main() { float h = smoothstep(-25.0, 100.0, vPosition.y); gl_FragColor = vec4(mix(vec3(0.87, 0.94, 0.89), vec3(0.48, 0.77, 0.88), h), 1.0); }',
+      fragmentShader: `
+        varying vec3 vPosition;
+        uniform vec3 topColor;
+        uniform vec3 horizonColor;
+        void main() {
+          float h = smoothstep(-5.0, 65.0, vPosition.y);
+          gl_FragColor = vec4(mix(horizonColor, topColor, h), 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }
+      `,
     }),
   );
   scene.add(sky);
-  scene.add(new THREE.HemisphereLight('#fff6db', '#709798', 2.6));
+  const ambient = new THREE.HemisphereLight('#fff6db', '#709798', 2.6);
+  scene.add(ambient);
   const sun = new THREE.DirectionalLight('#fff0c4', 3.1);
   sun.position.set(-18, 30, 12);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -29, right: 29, top: 29, bottom: -29, near: 1, far: 85 });
+  sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left: -29, right: 29, top: 29, bottom: -29, near: 1, far: 180 });
   sun.shadow.normalBias = 0.04;
   sun.shadow.bias = -0.0001;
   scene.add(sun);
+  const moonlight = new THREE.DirectionalLight('#b8ceff', 1.05);
+  scene.add(moonlight);
 
   const earth = new THREE.InstancedMesh(
     new THREE.BoxGeometry(TILE_SIZE + 0.002, 1.9, TILE_SIZE + 0.002),
@@ -100,5 +118,72 @@ export function createWorld(scene, tiles) {
     scene.add(cloud);
     clouds.push(cloud);
   }
-  return { update(dt) { clouds.forEach(cloud => { cloud.position.x += dt * 0.13; if (cloud.position.x > 85) cloud.position.x = -85; }); } };
+  const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(3.1, 12, 8), new THREE.MeshBasicMaterial({ color: '#ffe0a0', toneMapped: false, fog: false }));
+  const sunGlow = new THREE.Mesh(new THREE.SphereGeometry(4.5, 12, 8), new THREE.MeshBasicMaterial({ color: '#ffc57b', transparent: true, opacity: 0.15, depthWrite: false, toneMapped: false, fog: false }));
+  const moonDisc = new THREE.Mesh(new THREE.SphereGeometry(2.7, 12, 8), new THREE.MeshBasicMaterial({ color: '#e2ebff', toneMapped: false, fog: false }));
+  scene.add(sunDisc, sunGlow, moonDisc);
+
+  const starPositions = [];
+  const starCount = 280;
+  for (let i = 0; i < starCount; i++) {
+    const across = Math.sin(i * 13.713) * 110;
+    const height = 5 + (Math.sin(i * 7.919) * 0.5 + 0.5) * 75;
+    starPositions.push(-65 + across * 0.819, height, -93 - across * 0.573);
+  }
+  const starGeometry = new THREE.BufferGeometry();
+  starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+  const starMaterial = new THREE.PointsMaterial({ color: '#e4edff', size: 0.5, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false });
+  const stars = new THREE.Points(starGeometry, starMaterial);
+  scene.add(stars);
+
+  const palette = Object.fromEntries(Object.entries({
+    top: ['#101a39', '#80c5df', '#bc7a9a'],
+    horizon: ['#263d60', '#d7eee6', '#f6b982'],
+    water: ['#20334c', '#74c7c9', '#b9898f'],
+    ambient: ['#9faedc', '#fff6db', '#ffd4b0'],
+    ground: ['#344976', '#709798', '#917876'],
+    cloud: ['#3b4e70', '#fff8e9', '#f4c4b0'],
+  }).map(([name, colors]) => [name, colors.map(color => new THREE.Color(color))]));
+  function tint(destination, name, state) {
+    const [night, day, dusk] = palette[name];
+    destination.copy(night).lerp(day, state.daylight).lerp(dusk, state.twilight);
+  }
+  function celestialPosition(mesh, orbit) {
+    mesh.position.set(-48.7 + orbit.x * 45 * 0.819, orbit.y * 19, -69.6 - orbit.x * 45 * 0.573);
+  }
+  return {
+    update(dt, state, reducedMotion) {
+      tint(skyUniforms.topColor.value, 'top', state);
+      tint(skyUniforms.horizonColor.value, 'horizon', state);
+      scene.fog.color.copy(skyUniforms.horizonColor.value);
+      scene.background.copy(skyUniforms.topColor.value);
+      tint(water.material.color, 'water', state);
+      tint(ambient.color, 'ambient', state);
+      tint(ambient.groundColor, 'ground', state);
+      tint(cloudMaterial.color, 'cloud', state);
+      ambient.intensity = state.ambientIntensity;
+      sun.intensity = state.sunIntensity;
+      moonlight.intensity = state.moonIntensity;
+      sun.position.set(-48.7 + state.sun.x * 36.9, Math.max(state.elevation * 40, 3), -69.6 - state.sun.x * 25.8);
+      moonlight.position.set(-48.7 + state.moon.x * 36.9, Math.max(-state.elevation * 40, 3), -69.6 - state.moon.x * 25.8);
+      celestialPosition(sunDisc, state.sun);
+      sunGlow.position.copy(sunDisc.position);
+      celestialPosition(moonDisc, state.moon);
+      sunDisc.visible = sunGlow.visible = state.elevation > -0.08;
+      moonDisc.visible = state.elevation < 0.08;
+      starMaterial.opacity = state.stars;
+      stars.visible = state.stars > 0.001;
+      if (!reducedMotion) clouds.forEach(cloud => {
+        cloud.position.x += dt * 0.13;
+        if (cloud.position.x > 85) cloud.position.x = -85;
+      });
+    },
+    snapshot: () => ({
+      sunIntensity: sun.intensity, moonIntensity: moonlight.intensity,
+      ambientIntensity: ambient.intensity, starsOpacity: starMaterial.opacity,
+      starCount, skyTop: skyUniforms.topColor.value.getHexString(),
+      sunPosition: sunDisc.position.toArray(), moonPosition: moonDisc.position.toArray(),
+      sunVisible: sunDisc.visible, moonVisible: moonDisc.visible,
+    }),
+  };
 }

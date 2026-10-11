@@ -1,5 +1,7 @@
 import { createInput } from './input.js';
 import { createTiles, movePlayer } from './movement.js';
+import { createJumpState, stepJump } from './physics.js';
+import { createTimeControls } from './time-controls.js';
 
 const status = document.querySelector('#status');
 
@@ -18,7 +20,7 @@ async function start() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
-  renderer.domElement.setAttribute('aria-label', 'A blocky explorer on a sunny green island');
+  renderer.domElement.setAttribute('aria-label', 'A blocky explorer on an island under a changing day and night sky');
   document.querySelector('#game').append(renderer.domElement);
 
   const tiles = createTiles();
@@ -30,6 +32,9 @@ async function start() {
   const desired = new THREE.Vector3();
   const lookAt = target.clone();
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const jump = createJumpState();
+  const time = createTimeControls(reducedMotion);
+  world.update(0, time.update(0), reducedMotion.matches);
   camera.position.copy(target).add(offset);
   camera.lookAt(target);
 
@@ -63,21 +68,26 @@ async function start() {
         cameraDirection: camera.getWorldDirection(new THREE.Vector3()).toArray(),
         tiles: tiles.size,
         drawCalls: renderer.info.render.calls,
+        jump: { ...jump },
+        time: time.snapshot(),
+        lighting: world.snapshot(),
       }),
     }) });
   }
   renderer.setAnimationLoop(() => {
     if (contextLost) return;
-    const dt = Math.min(clock.getDelta(), 0.05);
+    const elapsed = clock.getDelta();
+    const dt = Math.min(elapsed, 0.05);
     const motion = movePlayer(character.root.position, input.read(), dt, tiles, offset);
+    stepJump(character.root.position, jump, input.consumeJump(), dt);
     character.update(motion, dt, reducedMotion.matches);
     target.copy(character.root.position);
-    target.y = 0.9;
+    target.y += 0.9;
     const blend = 1 - Math.exp(-7 * dt);
     camera.position.lerp(desired.copy(target).add(offset), blend);
     lookAt.lerp(target, blend);
     camera.lookAt(lookAt);
-    if (!reducedMotion.matches) world.update(dt);
+    world.update(dt, time.update(elapsed), reducedMotion.matches);
     renderer.render(scene, camera);
   });
   status.hidden = true;
