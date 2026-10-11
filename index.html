@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#b9e5ee">
+    <title>Tiny Island — Day 1</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="./src/style.css">
+    <script type="importmap">
+      {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}
+    </script>
+    <script type="module" src="./src/main.js"></script>
+  </head>
+  <body>
+    <main id="game" aria-label="Tiny Island, a 3D world you can explore"></main>
+    <header class="intro">
+      <p class="eyebrow">A WORLD WE’LL GROW TOGETHER</p>
+      <h1>Tiny Island<span>.</span></h1>
+      <p class="subtitle">A little land. A big beginning.</p>
+    </header>
+    <div class="day"><span class="sun-dot"></span> DAY 01 <span class="day-label">/ THE ISLAND</span></div>
+    <footer class="hud">
+      <div class="instructions">
+        <p class="desktop-hint"><kbd>W</kbd><span class="key-row"><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></p>
+        <div><strong>Take a little wander</strong><p id="control-hint">Move with WASD or arrow keys</p></div>
+      </div>
+      <button id="touch-toggle" type="button" aria-pressed="false">Touch controls</button>
+    </footer>
+    <nav id="touch-controls" aria-label="Movement controls" hidden>
+      <button data-direction="forward" class="forward" aria-label="Move forward">↑</button>
+      <button data-direction="left" class="left" aria-label="Move left">←</button>
+      <button data-direction="backward" class="backward" aria-label="Move backward">↓</button>
+      <button data-direction="right" class="right" aria-label="Move right">→</button>
+    </nav>
+    <p id="status" role="status">Your little island is loading…</p>
+    <noscript>This island needs JavaScript enabled to play.</noscript>
+  </body>
+</html>
