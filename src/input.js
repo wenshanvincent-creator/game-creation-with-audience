@@ -10,9 +10,15 @@ export function createInput() {
 
   function release() {
     keys.clear();
+    const captured = [...pointers.keys()];
     pointers.clear();
     jumpRequested = false;
-    buttons.forEach(button => button.classList.remove('held'));
+    buttons.forEach(button => {
+      button.classList.remove('held');
+      for (const id of captured) {
+        if (button.hasPointerCapture(id)) button.releasePointerCapture(id);
+      }
+    });
   }
   function showTouch(show) {
     release();
@@ -36,6 +42,9 @@ export function createInput() {
   });
   window.addEventListener('keyup', event => keys.delete(event.code));
   window.addEventListener('blur', release);
+  window.addEventListener('pagehide', release);
+  // A resized or rotated screen moves the controls away from held fingers.
+  window.addEventListener('resize', release);
   document.addEventListener('visibilitychange', () => { if (document.hidden) release(); });
 
   for (const button of buttons) {
